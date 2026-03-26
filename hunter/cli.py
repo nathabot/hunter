@@ -463,5 +463,156 @@ def test_data():
         console.print(f"[red]✗ CoinGecko error: {e}[/red]")
 
 
+@app.command()
+def chat(
+    message: Optional[str] = typer.Option(None, "--message", "-m", help="Single message to send"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive chat mode"),
+    analyze: Optional[str] = typer.Option(None, "--analyze", "-a", help="Analyze a strategy by ID"),
+):
+    """🤖 Chat with Hunter AI Agent"""
+    from hunter.core.ai_agent import HunterAI
+    
+    config = load_config()
+    
+    if not config.llm.enabled or not config.llm.api_key:
+        console.print(Panel("""
+[red]⚠️  AI Agent not configured![/red]
+
+To enable Hunter AI:
+1. Get an API key from OpenRouter (https://openrouter.ai/keys)
+2. Add to config:
+   
+   [cyan]hunter config --edit[/cyan]
+   
+   Add this section:
+   [green]llm:
+     enabled: true
+     provider: openrouter
+     api_key: your-api-key-here[/green]
+
+Or set environment variable:
+   [green]export HUNTER_LLM_API_KEY=your-key[/green]
+        """))
+        return
+    
+    ai = HunterAI({
+        "llm_api_key": config.llm.api_key,
+        "llm_provider": config.llm.provider,
+        "llm_model": config.llm.model
+    })
+    
+    if analyze:
+        # Analyze a specific strategy
+        db = Database()
+        strategies = db.get_active_strategies()
+        target = None
+        for s in strategies:
+            if s.get("strategy_id") == analyze or str(s.get("id")) == analyze:
+                target = s
+                break
+        
+        if not target:
+            console.print(f"[red]Strategy not found: {analyze}[/red]")
+            console.print("[yellow]Run 'hunter strategies' to see available strategies[/yellow]")
+            return
+        
+        console.print(Panel(f"[bold]Analyzing {target['name']}...[/bold]"))
+        
+        try:
+            analysis = ai.analyze(target)
+            
+            table = Table(title="AI Analysis", box=box.ROUNDED)
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="white")
+            
+            table.add_row("AI Confidence", f"{analysis.get('confidence_score', 0):.0%}")
+            table.add_row("Risk Assessment", analysis.get('risk_assessment', 'Unknown'))
+            table.add_row("Recommendation", analysis.get('recommendation', 'Unknown'))
+            table.add_row("Position Size", analysis.get('position_size', 'Unknown'))
+            table.add_row("Market Timing", analysis.get('market_timing', 'Unknown'))
+            
+            console.print(table)
+            
+            if analysis.get('hidden_risks'):
+                console.print("\n[red]⚠️ Hidden Risks:[/red]")
+                for risk in analysis['hidden_risks']:
+                    console.print(f"  • {risk}")
+            
+            console.print(f"\n[bold]Analysis:[/bold]\n{analysis.get('analysis', 'No analysis')}")
+            console.print(f"\n[dim]Reasoning: {analysis.get('reasoning', 'N/A')[:200]}...[/dim]")
+            
+        except Exception as e:
+            console.print(f"[red]Analysis error: {e}[/red]")
+    
+    elif message:
+        # Single message
+        console.print(Panel(f"[bold cyan]You:[/bold cyan] {message}"))
+        try:
+            response = ai.chat(message)
+            console.print(Panel(f"[bold green]Hunter:[/bold green] {response}", title="🎯 Hunter AI"))
+        except Exception as e:
+            console.print(f"[red]Chat error: {e}[/red]")
+    
+    elif interactive:
+        # Interactive mode
+        console.print(Panel("""
+[bold]🎯 Hunter AI Agent - Interactive Mode[/bold]
+
+Commands:
+  /exit, /quit  - Exit chat
+  /clear        - Clear conversation history
+  /analyze ID   - Analyze specific strategy
+  
+Type your message or question below:
+        """))
+        
+        while True:
+            try:
+                user_input = console.input("\n[bold cyan]You:[/bold cyan] ").strip()
+                
+                if not user_input:
+                    continue
+                
+                if user_input.lower() in ['/exit', '/quit', 'exit', 'quit']:
+                    console.print("[yellow]👋 See you in the trenches![/yellow]")
+                    break
+                
+                if user_input.lower() == '/clear':
+                    ai.memory = []
+                    console.print("[green]Memory cleared![/green]")
+                    continue
+                
+                if user_input.lower().startswith('/analyze '):
+                    strategy_id = user_input.split(' ', 1)[1]
+                    console.print(f"[yellow]Use: hunter chat --analyze {strategy_id}[/yellow]")
+                    continue
+                
+                with console.status("[bold green]Hunter is thinking..."):
+                    response = ai.chat(user_input)
+                
+                console.print(f"[bold green]Hunter:[/bold green] {response}")
+                
+            except KeyboardInterrupt:
+                console.print("\n[yellow]👋 Peace out![/yellow]")
+                break
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/red]")
+    
+    else:
+        console.print("""
+[bold]🎯 Hunter AI Agent[/bold]
+
+Usage:
+  [cyan]hunter chat -i[/cyan]           # Interactive chat mode
+  [cyan]hunter chat -m "message"[/cyan]   # Single message
+  [cyan]hunter chat -a STRATEGY_ID[/cyan] # Analyze strategy
+
+Examples:
+  [green]hunter chat -m "What do you think about SOL right now?"[/green]
+  [green]hunter chat -m "Explain arbitrage strategies"[/green]
+  [green]hunter chat -i[/green]
+        """)
+
+
 if __name__ == "__main__":
     app()

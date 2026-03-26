@@ -59,6 +59,16 @@ class PaperTradingConfig(BaseModel):
     track_pnl: bool = Field(default=True)
 
 
+class LLMConfig(BaseModel):
+    """LLM/AI Agent configuration"""
+    enabled: bool = Field(default=False)
+    provider: str = Field(default="openrouter", pattern="^(openrouter|kimi|openai)$")
+    model: Optional[str] = Field(default=None)  # None = use provider default
+    api_key: Optional[str] = Field(default=None)
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2000, ge=100, le=4000)
+
+
 class HunterConfig(BaseModel):
     """Main Hunter configuration"""
     scan: ScanConfig = Field(default_factory=ScanConfig)
@@ -66,6 +76,7 @@ class HunterConfig(BaseModel):
     apis: APIConfig = Field(default_factory=APIConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     paper_trading: PaperTradingConfig = Field(default_factory=PaperTradingConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
     
     class Config:
         validate_assignment = True
