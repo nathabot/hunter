@@ -66,9 +66,13 @@ def scan(
     min_confidence: float = typer.Option(0.6, "--min-confidence", help="Minimum confidence threshold"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Scan without saving to database"),
     execute: bool = typer.Option(False, "--execute", help="Execute in paper trading mode"),
+    academic: bool = typer.Option(False, "--academic", "-a", help="Use academic strategies (from 151 Trading Strategies paper)"),
 ):
     """🔍 Run a one-time strategy scan"""
     console.print(Panel(f"[bold green]Scanning {ecosystem} for strategies...[/bold green]"))
+    
+    if academic:
+        console.print("[cyan]📚 Academic mode enabled (from '151 Trading Strategies')[/cyan]")
     
     config = load_config()
     db = Database()
@@ -86,7 +90,7 @@ def scan(
     console.print(f"[green]✓[/green] Retrieved data for {len(market_data['tokens'])} tokens")
     
     # Initialize strategy engine
-    engine = StrategyEngine(ecosystem)
+    engine = StrategyEngine(ecosystem, enable_academic=academic)
     
     # Determine which strategy types to scan
     types_to_scan = None
