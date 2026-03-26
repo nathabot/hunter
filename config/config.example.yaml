@@ -42,3 +42,23 @@ paper_trading:
   initial_balance_usd: 10000.0
   max_position_size_usd: 1000.0
   track_pnl: true
+
+# AI Agent / LLM Configuration
+# Get API key from OpenRouter (https://openrouter.ai/keys) - FREE $5 credit
+llm:
+  enabled: false  # Set to true to enable AI chat
+  provider: openrouter  # Options: openrouter, kimi, openai
+  
+  # Model selection (optional - leave null for provider default)
+  # OpenRouter examples: "anthropic/claude-3.5-sonnet", "openai/gpt-4o", "kimi/kimi-k2.5"
+  model: null
+  
+  # API Key - Get from https://openrouter.ai/keys (FREE)
+  # Or set environment variable: export HUNTER_LLM_API_KEY=your_key
+  api_key: null
+  
+  # Temperature: 0.0 = deterministic, 1.0 = creative
+  temperature: 0.7
+  
+  # Max tokens per response
+  max_tokens: 2000
