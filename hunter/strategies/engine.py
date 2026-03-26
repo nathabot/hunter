@@ -15,6 +15,10 @@ class StrategyType(Enum):
     MOMENTUM = "momentum"
     AIRDROP_FARMING = "airdrop_farming"
     LIQUIDITY_MINING = "liquidity_mining"
+    OTHER = "other"
+    # Academic strategies
+    MEAN_REVERSION = "mean_reversion"
+    ML_PREDICTION = "ml_prediction"
 
 
 class RiskLevel(Enum):
@@ -456,13 +460,34 @@ class MomentumDetector(BaseStrategyDetector):
 class StrategyEngine:
     """Main strategy detection engine"""
     
-    def __init__(self, ecosystem: str = "solana"):
+    def __init__(self, ecosystem: str = "solana", enable_academic: bool = False):
         self.ecosystem = ecosystem
         self.detectors = {
             StrategyType.ARBITRAGE: ArbitrageDetector(ecosystem),
             StrategyType.YIELD_FARMING: YieldFarmingDetector(ecosystem),
             StrategyType.MOMENTUM: MomentumDetector(ecosystem),
         }
+        
+        # Register academic strategies if enabled
+        if enable_academic:
+            try:
+                from hunter.strategies.academic_strategies import (
+                    CryptoMomentumDetector,
+                    CryptoMeanReversionDetector,
+                    # CryptoKNNDetector  # Experimental - uncomment with caution
+                )
+                
+                # Override default momentum with academic version
+                self.detectors[StrategyType.MOMENTUM] = CryptoMomentumDetector(ecosystem)
+                
+                # Add mean-reversion
+                self.detectors[StrategyType.MEAN_REVERSION] = CryptoMeanReversionDetector(ecosystem)
+                
+                # Add ML prediction (experimental)
+                # self.detectors[StrategyType.ML_PREDICTION] = CryptoKNNDetector(ecosystem)
+                
+            except ImportError as e:
+                print(f"Warning: Could not load academic strategies: {e}")
     
     def scan(self, data: Dict[str, Any], strategy_types: Optional[List[StrategyType]] = None) -> List[Strategy]:
         """Run all detectors and return strategies"""
