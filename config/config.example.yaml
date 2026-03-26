@@ -1,0 +1,44 @@
+# Hunter Example Configuration
+# Copy this to ~/.hunter/config.yaml and customize
+
+scan:
+  interval_hours: 4
+  ecosystems:
+    - solana
+  strategy_types:
+    - arbitrage
+    - yield_farming
+    - momentum
+    - airdrop_farming
+
+risk:
+  tolerance: conservative  # Options: conservative, moderate, aggressive
+  max_position_size_pct: 5.0
+  min_confidence_threshold: 0.7
+
+apis:
+  # Free APIs (no key required) - enabled by default
+  defillama: free
+  coingecko: free
+  
+  # Paid APIs (optional) - add your API keys here
+  # Get Birdeye API key: https://birdeye.so/
+  # birdeye: your_birdeye_api_key_here
+  
+  # Get Helius API key: https://helius.xyz/
+  # helius: your_helius_api_key_here
+  
+  # Get Twitter Bearer Token: https://developer.twitter.com/
+  # twitter_bearer: your_twitter_bearer_token_here
+
+telegram:
+  # Get bot token from @BotFather on Telegram
+  # bot_token: your_bot_token_here
+  alert_min_confidence: 0.75
+  alert_min_profit_apr: "10%"
+
+paper_trading:
+  enabled: true
+  initial_balance_usd: 10000.0
+  max_position_size_usd: 1000.0
+  track_pnl: true

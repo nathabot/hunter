@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hunter"
+version = "0.1.0"
+description = "AI Agent for Web3 Strategy Hunting - Open Source"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Hunter Contributors" }
+]
+keywords = ["web3", "defi", "trading", "ai-agent", "solana", "strategy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "typer[all]>=0.12.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+    "aiohttp>=3.9.0",
+    "sqlalchemy>=2.0.0",
+    "apscheduler>=3.10.0",
+    "python-telegram-bot>=20.0",
+    "rich>=13.0.0",
+    "httpx>=0.25.0",
+    "tenacity>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.scripts]
+hunter = "hunter.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/hunter"
+Documentation = "https://github.com/yourusername/hunter/tree/main/docs"
+Repository = "https://github.com/yourusername/hunter.git"
+Issues = "https://github.com/yourusername/hunter/issues"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
