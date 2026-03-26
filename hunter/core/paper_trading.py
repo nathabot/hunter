@@ -50,7 +50,7 @@ class PaperTrading:
         # Deduct from balance
         self.balance -= position_size
         
-        return trade.to_dict()
+        return trade
     
     def close_position(self, trade_id: str, exit_price: float, notes: str = None) -> Optional[Dict]:
         """Close a paper trading position"""
@@ -58,8 +58,8 @@ class PaperTrading:
         
         if trade:
             # Return funds to balance (plus/minus P&L)
-            self.balance += trade.position_size_usd + trade.pnl_absolute
-            return trade.to_dict()
+            self.balance += trade['position_size_usd'] + trade.get('pnl_absolute', 0)
+            return trade
         
         return None
     

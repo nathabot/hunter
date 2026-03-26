@@ -196,7 +196,7 @@ class Database:
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
     
-    def save_strategy(self, strategy) -> StrategyModel:
+    def save_strategy(self, strategy) -> Dict:
         """Save a strategy to database"""
         from hunter.strategies.engine import Strategy
         
@@ -225,7 +225,9 @@ class Database:
             
             session.add(model)
             session.commit()
-            return model
+            session.refresh(model)
+            result = model.to_dict()
+            return result
             
         finally:
             session.close()
@@ -249,7 +251,7 @@ class Database:
             session.close()
     
     def create_paper_trade(self, strategy_id: str, token_symbol: str, 
-                          entry_price: float, position_size: float) -> TradeModel:
+                          entry_price: float, position_size: float) -> Dict:
         """Create a paper trade"""
         import uuid
         
@@ -266,12 +268,13 @@ class Database:
             
             session.add(trade)
             session.commit()
-            return trade
+            session.refresh(trade)
+            return trade.to_dict()
             
         finally:
             session.close()
     
-    def close_paper_trade(self, trade_id: str, exit_price: float, notes: str = None) -> Optional[TradeModel]:
+    def close_paper_trade(self, trade_id: str, exit_price: float, notes: str = None) -> Optional[Dict]:
         """Close a paper trade and calculate P&L"""
         session = self.Session()
         try:
@@ -291,7 +294,8 @@ class Database:
                 trade.pnl_absolute = (trade.pnl_percent / 100) * trade.position_size_usd
             
             session.commit()
-            return trade
+            session.refresh(trade)
+            return trade.to_dict()
             
         finally:
             session.close()
@@ -303,7 +307,8 @@ class Database:
             query = session.query(TradeModel)
             
             if status:
-                query = query.filter(TradeModel.status == TradeStatus(status.upper()))
+                # Convert string to TradeStatus enum by value
+                query = query.filter(TradeModel.status == TradeStatus(status.lower()))
             
             trades = query.order_by(TradeModel.opened_at.desc()).all()
             return [t.to_dict() for t in trades]

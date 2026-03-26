@@ -54,18 +54,18 @@ def test_database():
     
     try:
         from hunter.core.database import Database, StrategyModel
+        from hunter.strategies.engine import (
+            Strategy, StrategyType, RiskLevel, Risk, Recommendation
+        )
         
         # Create database
         db = Database()
         results.append(print_result(True, "Database initialization"))
         
-        # Test strategy save
-        from hunter.strategies.engine import (
-            Strategy, StrategyType, RiskLevel, Risk, Recommendation
-        )
-        
+        # Test strategy save with unique ID
+        import uuid
         test_strategy = Strategy(
-            strategy_id="test_001",
+            strategy_id=f"test_{uuid.uuid4().hex[:8]}",
             name="Test Strategy",
             ecosystem="solana",
             type=StrategyType.ARBITRAGE,
@@ -84,8 +84,8 @@ def test_database():
             execution_steps=["step1"]
         )
         
-        model = db.save_strategy(test_strategy)
-        results.append(print_result(True, f"Strategy saved (ID: {model.id})"))
+        saved = db.save_strategy(test_strategy)
+        results.append(print_result(True, f"Strategy saved (ID: {saved.get('id', 'N/A')})"))
         
         # Test retrieval
         active = db.get_active_strategies()
@@ -93,7 +93,7 @@ def test_database():
         
         # Test paper trade
         trade = db.create_paper_trade("test_001", "SOL", 100.0, 1000.0)
-        results.append(print_result(True, f"Paper trade created (ID: {trade.trade_id})"))
+        results.append(print_result(True, f"Paper trade created (ID: {trade.get('trade_id', 'N/A')})"))
         
         # Test PnL
         pnl = db.get_pnl_summary()
@@ -211,6 +211,7 @@ def test_paper_trading():
     try:
         from hunter.core.paper_trading import PaperTrading
         from hunter.strategies.engine import Strategy, StrategyType, RiskLevel, Risk, Recommendation
+        import uuid
         
         # Initialize
         paper = PaperTrading(initial_balance=10000.0)
@@ -221,9 +222,9 @@ def test_paper_trading():
             f"Initial balance: ${portfolio['initial_balance']:,.2f}"
         ))
         
-        # Create mock strategy
+        # Create mock strategy with unique ID
         strategy = Strategy(
-            strategy_id="paper_test_001",
+            strategy_id=f"paper_test_{uuid.uuid4().hex[:8]}",
             name="Test Arbitrage",
             ecosystem="solana",
             type=StrategyType.ARBITRAGE,
