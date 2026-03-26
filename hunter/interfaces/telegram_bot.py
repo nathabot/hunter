@@ -1,6 +1,6 @@
 """
 Telegram Bot Integration for Hunter
-Provides real-time alerts and interactive commands
+Provides real-time alerts, AI chat, and interactive commands
 """
 import asyncio
 import logging
@@ -14,6 +14,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
     ConversationHandler,
+    MessageHandler,
+    filters,
 )
 
 from hunter.core.config import load_config
@@ -22,7 +24,7 @@ from hunter.strategies.engine import Strategy, Recommendation
 logger = logging.getLogger(__name__)
 
 # Conversation states
-CONFIGURING, SCANNING = range(2)
+CONFIGURING, SCANNING, CHATTING = range(3)
 
 
 class HunterTelegramBot:
@@ -40,7 +42,7 @@ class HunterTelegramBot:
         """Start the bot"""
         self.application = Application.builder().token(self.token).build()
         
-        # Add handlers
+        # Add command handlers
         self.application.add_handler(CommandHandler("start", self.cmd_start))
         self.application.add_handler(CommandHandler("help", self.cmd_help))
         self.application.add_handler(CommandHandler("scan", self.cmd_scan))
@@ -49,6 +51,11 @@ class HunterTelegramBot:
         self.application.add_handler(CommandHandler("alerts", self.cmd_alerts))
         self.application.add_handler(CommandHandler("pnl", self.cmd_pnl))
         self.application.add_handler(CommandHandler("strategies", self.cmd_strategies))
+        self.application.add_handler(CommandHandler("chat", self.cmd_chat))
+        self.application.add_handler(CommandHandler("clear", self.cmd_clear))
+        
+        # Message handler for natural chat (when not in command)
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_message))
         
         # Callback handlers for buttons
         self.application.add_handler(CallbackQueryHandler(self.on_callback))
@@ -75,16 +82,21 @@ class HunterTelegramBot:
         welcome_text = """
 🎯 *Welcome to Hunter Bot*
 
-Your autonomous Web3 strategy hunter.
+Your autonomous Web3 strategy hunter with AI.
 
 *Available Commands:*
 /scan - Run strategy scan
 /status - System status
 /strategies - View active strategies
 /pnl - Paper trading P&L
+/chat - Chat with AI
+/clear - Clear chat history
 /alerts - Manage alerts
 /config - View configuration
 /help - Show this help
+
+*AI Chat:*
+Just send me any message for market analysis!
 
 *Auto-Alerts:*
 You'll receive notifications when high-confidence strategies are detected.
@@ -111,6 +123,11 @@ You'll receive notifications when high-confidence strategies are detected.
 *Strategy Hunting:*
 /scan [ecosystem] - Run manual scan
 /strategies - List active strategies
+
+*AI Chat:*
+/chat - Start AI chat mode
+Just message me naturally for market analysis!
+/clear - Clear chat history
 
 *Monitoring:*
 /status - System status
@@ -275,6 +292,100 @@ Use `/strategies` to view details.
             )
         except Exception as e:
             logger.error(f"Failed to send alert: {e}")
+
+    async def cmd_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /chat command - start AI chat mode"""
+        chat_text = """
+🤖 *Hunter AI Chat Mode*
+
+I'm ready to chat! Ask me anything about:
+• Market analysis
+• Strategy explanations
+• Risk assessment
+• Web3 opportunities
+
+Just type your message naturally.
+
+Commands in chat mode:
+/clear - Clear our conversation history
+/exit - Exit chat mode (or just type normally)
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("🧹 Clear History", callback_data="clear_chat")],
+            [InlineKeyboardButton("📊 Market Status", callback_data="status")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            chat_text,
+            parse_mode="Markdown",
+            reply_markup=reply_markup
+        )
+    
+    async def cmd_clear(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /clear command - clear chat history"""
+        try:
+            from hunter.core.ai_agent import HunterAI
+            
+            user_id = str(update.effective_user.id)
+            ai = HunterAI(session_id=user_id)
+            ai.clear_memory()
+            
+            await update.message.reply_text("🧹 Chat history cleared! Starting fresh conversation.")
+            
+        except Exception as e:
+            logger.error(f"Failed to clear chat: {e}")
+            await update.message.reply_text("❌ Failed to clear chat history.")
+    
+    async def on_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle natural language messages with AI"""
+        try:
+            from hunter.core.ai_agent import HunterAI
+            from hunter.core.config import load_config
+            
+            config = load_config()
+            
+            # Check if AI is enabled
+            if not config.llm.enabled or not config.llm.api_key:
+                await update.message.reply_text(
+                    "🤖 AI Chat is not configured.\n\n"
+                    "To enable:\n"
+                    "1. Get API key from OpenRouter\n"
+                    "2. Run: hunter config --edit\n"
+                    "3. Add LLM configuration\n\n"
+                    "Available commands: /scan /status /strategies /pnl /help"
+                )
+                return
+            
+            user_id = str(update.effective_user.id)
+            user_message = update.message.text
+            
+            # Show typing indicator
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="typing"
+            )
+            
+            # Initialize AI with user-specific session
+            ai = HunterAI({
+                "llm_api_key": config.llm.api_key,
+                "llm_provider": config.llm.provider,
+                "llm_model": config.llm.model
+            }, session_id=user_id)
+            
+            # Get AI response
+            response = ai.chat(user_message)
+            
+            # Send response
+            await update.message.reply_text(response)
+            
+        except Exception as e:
+            logger.error(f"AI chat error: {e}")
+            await update.message.reply_text(
+                "❌ Sorry, I'm having trouble thinking right now.\n"
+                "Try again later or use /help for commands."
+            )
 
 
 def run_bot():

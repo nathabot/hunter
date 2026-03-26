@@ -205,10 +205,11 @@ Never give financial advice. Always say "DYOR" and "Not financial advice" when d
 
 
 class HunterAI:
-    """Main Hunter AI Agent class"""
+    """Main Hunter AI Agent class with persistent memory"""
     
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, session_id: str = "default"):
         config = config or {}
+        self.session_id = session_id
         
         self.llm = LLMClient(
             api_key=config.get("llm_api_key"),
@@ -216,8 +217,26 @@ class HunterAI:
             model=config.get("llm_model")
         )
         
-        self.memory = []  # Conversation memory
         self.max_memory = 20
+        self.db = None
+        
+        # Try to import database for persistent memory
+        try:
+            from hunter.core.database import Database
+            self.db = Database()
+        except ImportError:
+            pass
+    
+    def _load_memory(self) -> List[Dict]:
+        """Load memory from persistent storage"""
+        if self.db:
+            return self.db.get_chat_history(self.session_id, limit=self.max_memory)
+        return []
+    
+    def _save_message(self, role: str, content: str):
+        """Save message to persistent storage"""
+        if self.db:
+            self.db.save_chat_message(self.session_id, role, content)
     
     def analyze(self, strategy_data: Dict, market_context: Dict = None) -> Dict:
         """Analyze a strategy with AI reasoning"""
@@ -225,17 +244,26 @@ class HunterAI:
     
     def chat(self, message: str) -> str:
         """Chat with Hunter AI"""
-        response = self.llm.chat_with_personality(message, self.memory)
+        # Load memory from database
+        memory = self._load_memory()
         
-        # Update memory
-        self.memory.append({"role": "user", "content": message})
-        self.memory.append({"role": "assistant", "content": response})
+        # Get response
+        response = self.llm.chat_with_personality(message, memory)
         
-        # Trim memory
-        if len(self.memory) > self.max_memory * 2:
-            self.memory = self.memory[-self.max_memory * 2:]
+        # Save to persistent storage
+        self._save_message("user", message)
+        self._save_message("assistant", response)
         
         return response
+    
+    def clear_memory(self):
+        """Clear conversation memory"""
+        if self.db:
+            self.db.clear_chat_history(self.session_id)
+    
+    def get_memory(self) -> List[Dict]:
+        """Get conversation memory"""
+        return self._load_memory()
     
     def explain_strategy(self, strategy_name: str, details: Dict) -> str:
         """Explain a strategy in Hunter's voice"""

@@ -184,6 +184,28 @@ class MemoryModel(Base):
         }
 
 
+class ChatHistoryModel(Base):
+    """Persistent chat history for Hunter AI"""
+    __tablename__ = "chat_history"
+    
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, nullable=False, index=True)  # user_id or session_id
+    timestamp = Column(DateTime, default=func.now())
+    role = Column(String, nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+    context_json = Column(Text)  # Additional context (strategy_id, etc.)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "role": self.role,
+            "content": self.content,
+            "context": json.loads(self.context_json) if self.context_json else {}
+        }
+
+
 class Database:
     """Database manager for Hunter"""
     
@@ -382,6 +404,50 @@ class Database:
             ).limit(limit).all()
             
             return [m.to_dict() for m in memories]
+            
+        finally:
+            session.close()
+    
+    def save_chat_message(self, session_id: str, role: str, content: str, context: Dict = None):
+        """Save a chat message to persistent storage"""
+        session = self.Session()
+        try:
+            chat_msg = ChatHistoryModel(
+                session_id=session_id,
+                role=role,
+                content=content,
+                context_json=json.dumps(context or {})
+            )
+            
+            session.add(chat_msg)
+            session.commit()
+            
+        finally:
+            session.close()
+    
+    def get_chat_history(self, session_id: str, limit: int = 50) -> List[Dict]:
+        """Get chat history for a session"""
+        session = self.Session()
+        try:
+            messages = session.query(ChatHistoryModel).filter(
+                ChatHistoryModel.session_id == session_id
+            ).order_by(
+                ChatHistoryModel.timestamp.asc()
+            ).limit(limit).all()
+            
+            return [m.to_dict() for m in messages]
+            
+        finally:
+            session.close()
+    
+    def clear_chat_history(self, session_id: str):
+        """Clear chat history for a session"""
+        session = self.Session()
+        try:
+            session.query(ChatHistoryModel).filter(
+                ChatHistoryModel.session_id == session_id
+            ).delete()
+            session.commit()
             
         finally:
             session.close()
